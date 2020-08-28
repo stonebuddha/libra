@@ -14,9 +14,25 @@ use libra_types::{
     epoch_state::EpochState, ledger_info::LedgerInfo, transaction::Version,
     validator_signer::ValidatorSigner, validator_verifier::ValidatorVerifier,
 };
-use mirai_annotations::debug_checked_verify_eq;
+use mirai_annotations::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Display, Formatter};
+
+#[cfg(mirai)]
+mod tags {
+    use mirai_annotations::*;
+
+    pub struct DeserializedBlockTagKind<const MASK: TagPropagationSet> {}
+
+    const DESERIALIZED_BLOCK_TAG_MASK: TagPropagationSet = tag_propagation_set!();
+
+    pub type DeserializedBlockTag = DeserializedBlockTagKind<DESERIALIZED_BLOCK_TAG_MASK>;
+}
+
+#[cfg(mirai)]
+use tags::DeserializedBlockTag;
+#[cfg(not(mirai))]
+struct DeserializedBlockTag {}
 
 #[path = "block_test_utils.rs"]
 #[cfg(any(test, feature = "fuzzing"))]
@@ -213,6 +229,7 @@ impl Block {
     /// Makes sure that the proposal makes sense, independently of the current state.
     /// If this is the genesis block, we skip these checks.
     pub fn verify_well_formed(&self) -> anyhow::Result<()> {
+        precondition!(has_tag!(self, DeserializedBlockTag));
         ensure!(
             !self.is_genesis_block(),
             "We must not accept genesis from others"
@@ -282,11 +299,13 @@ impl<'de> Deserialize<'de> for Block {
             signature,
         } = BlockWithoutId::deserialize(deserializer)?;
 
-        Ok(Block {
+        let block = Block {
             id: block_data.hash(),
             block_data,
-            signature,
-        })
+            signature
+        };
+        add_tag!(&block, DeserializedBlockTag);
+        Ok(block)
     }
 }
 

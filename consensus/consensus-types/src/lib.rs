@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![forbid(unsafe_code)]
+//! This feature gets turned on only if consensus-types is compiled via MIRAI in a nightly build.
+#![cfg_attr(mirai, allow(incomplete_features), feature(const_generics))]
 
 pub mod block;
 pub mod block_data;
